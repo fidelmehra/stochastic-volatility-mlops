@@ -1,0 +1,120 @@
+# =============================================================
+# Stochastic Volatility MLOps - Master Configuration
+# Author: Fidel Mehra
+# =============================================================
+
+project:
+  name: stochastic-volatility-mlops
+  author: Fidel Mehra
+  version: "1.0.0"
+
+# ----------------------------
+# Data Ingestion
+# ----------------------------
+data:
+  assets:
+    - ticker: BTC-USD
+      name: Bitcoin
+    - ticker: ETH-USD
+      name: Ethereum
+    - ticker: SPY
+      name: S&P500 ETF
+    - ticker: GC=F
+      name: Gold Futures
+  period_years: 5
+  interval: 1d
+  raw_dir: data/raw
+  processed_dir: data/processed
+
+# ----------------------------
+# Feature Engineering
+# ----------------------------
+features:
+  target_horizon: 5           # days ahead for RV target
+  rv_windows: [5, 10, 20, 30]
+  lag_windows: [1, 2, 3, 5, 10, 20]
+  ewma_spans: [10, 20]
+  rolling_stats_window: 20
+  jump_z_threshold: 3.0       # z-score to flag jumps
+  hmm_n_states: 3
+
+# ----------------------------
+# Model Training
+# ----------------------------
+training:
+  test_size: 0.2
+  backtest_folds: 5
+  random_seed: 42
+  model_registry_dir: models/registry
+
+  xgboost:
+    n_estimators: 500
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    early_stopping_rounds: 50
+
+  lightgbm:
+    n_estimators: 500
+    max_depth: 6
+    learning_rate: 0.05
+    num_leaves: 63
+    subsample: 0.8
+    colsample_bytree: 0.8
+
+  lstm:
+    sequence_length: 30
+    hidden_size: 64
+    num_layers: 2
+    dropout: 0.2
+    learning_rate: 0.001
+    epochs: 100
+    batch_size: 32
+    patience: 15             # early stopping patience
+
+  hmm:
+    n_components: 3
+    covariance_type: full
+    n_iter: 200
+    random_state: 42
+
+  optuna:
+    n_trials: 50
+    direction: minimize       # minimise RMSE
+    study_name: xgb_volatility
+
+# ----------------------------
+# Evaluation
+# ----------------------------
+evaluation:
+  primary_metric: rmse
+  metrics: [rmse, mae, qlike, r2]
+  regime_metrics: [f1_weighted, roc_auc_macro]
+  results_dir: models/registry
+
+# ----------------------------
+# MLflow Tracking
+# ----------------------------
+mlflow:
+  tracking_uri: mlruns
+  experiment_name: stochastic-volatility
+  registered_model_name: volatility_forecaster
+
+# ----------------------------
+# API
+# ----------------------------
+api:
+  host: 0.0.0.0
+  port: 8000
+  model_path: models/registry/best_model.pkl
+  metadata_path: models/registry/best_model_metadata.json
+
+# ----------------------------
+# Logging
+# ----------------------------
+logging:
+  level: INFO
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {module} | {message}"
